@@ -1,0 +1,176 @@
+﻿<Window x:Class="TourneyDiscordBotWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:TourneyDiscordBotWPF"
+        x:Name="BaseWindow"
+        mc:Ignorable="d"
+        Title="The Worst Tournament Creator Ever" Height="450" Width="800" Loaded="Window_Loaded" Closed="BaseWindow_Closed" Closing="BaseWindow_Closing">
+    
+    <Window.Resources>
+        <ResourceDictionary>
+            <DataTemplate DataType="{x:Type local:Player}">
+                <DockPanel>
+                    <Image Source="{Binding Rank.ImageSrc}" Width="26"/>
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                </DockPanel>
+            </DataTemplate>
+
+            <DataTemplate x:Key="MatchupTemplate" DataType="{x:Type local:Matchup}">
+                <DockPanel MouseDown="DockPanel_MouseDown" ContextMenuOpening="DockPanel_ContextMenuOpening" IsEnabled="{Binding IsValid}" Background="{Binding Color}">
+                    <TextBlock Text="Team: "  VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding Team1.ID}"  VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                    <TextBlock Text=" vs "  VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Team: "  VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                    <TextBlock Text="{Binding Team2.ID}"  VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                </DockPanel>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type local:Team2s}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="26"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock Text="Team ID: "></TextBlock>
+                        <TextBlock Text="{Binding ID}"></TextBlock>
+                    </StackPanel>
+                    <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" VerticalAlignment="Stretch" Width="1" Margin="2" Stroke="Black" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Player 1: " VerticalAlignment="Center"></TextBlock>
+                    <ContentControl Grid.Row="0" Grid.Column="3" Content="{Binding Player1}" HorizontalAlignment="Left"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Player 2: " VerticalAlignment="Center"></TextBlock>
+                    <ContentControl Grid.Row="1" Grid.Column="3" Content="{Binding Player2}" HorizontalAlignment="Left"/>
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+        <Menu Grid.Row="0" Width="Auto" Height="20" VerticalAlignment="Top">
+            <MenuItem Header="File">
+                <MenuItem Header ="Close" Click="FormClose"/>
+            </MenuItem>
+        </Menu>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="10*"/>
+                <ColumnDefinition Width="90*"/>
+            </Grid.ColumnDefinitions>
+            <DockPanel Grid.Column="0">
+                <TextBlock  HorizontalAlignment="Left" TextAlignment="Left" Text="Bot Status:"/>
+                <CheckBox HorizontalAlignment="Left" VerticalAlignment="Center" IsEnabled="False" IsChecked="{Binding ElementName=BaseWindow, Path=BotStatus}"/>
+            </DockPanel>
+            <TextBlock Grid.Column="1" HorizontalAlignment="Right" TextAlignment="Right">Created by gregkwaste for zimarulis :D</TextBlock>
+        </Grid>
+        
+        <TabControl Grid.Row="1">
+            <TabItem Header="Discord">
+                <ScrollViewer>
+                    <TextBox x:Name="Discord_Output" IsReadOnly="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Players">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="60"/>
+                    </Grid.RowDefinitions>
+                    <GroupBox Header="Player List">
+                        <ListView Grid.Row="0" x:Name="PlayerList">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Height" Value="24" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Remove" Click="RemovePlayer"/>
+                                </ContextMenu>
+                            </ListView.ContextMenu>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Width="20" Header="ID" DisplayMemberBinding="{Binding ID}"/>
+                                    <GridViewColumn Width="200" Header="Name" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn>
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Image Width="24" Source="{Binding Rank.ImageSrc}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="200" Header="Rank" DisplayMemberBinding="{Binding Rank.Name}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </GroupBox>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="50*"/>
+                            <ColumnDefinition Width="50*"/>
+                            <ColumnDefinition Width="50*"/>
+                            <ColumnDefinition Width="50*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="50*"/>
+                            <RowDefinition Height="50*"/>
+                        </Grid.RowDefinitions>
+                        <Button Grid.Column="0" Grid.Row="0" Height="30" Click="AddPLayerEvent">Add Player</Button>
+                        <Button Grid.Column="1" Grid.Row="0" Height="30" Click="ClearPlayersEvent">Clear Players</Button>
+                        <Button Grid.Column="2" Grid.Row="0" Height="30" Click="ImportPlayersEvent">Import Players from CSV</Button>
+                        <Button Grid.Column="3" Grid.Row="0" Height="30" Click="Refresh">Refresh</Button>
+                        <Button Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="1" Height="30" Click="CreateTeams">Create Teams</Button>
+                    </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Teams">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="80*"/>
+                        <RowDefinition Height="40"/>
+                    </Grid.RowDefinitions>
+                    <GroupBox Header="Team List">
+                        <ListView Grid.Row="0" x:Name="TeamList">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Height" Value="60" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </GroupBox>
+
+                    <Button Grid.Row="1" Height="40" Click="CreateBracket">Generate Bracket</Button>
+                </Grid>
+
+
+
+            </TabItem>
+            <TabItem Header="Bracket">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition Height="40"/>
+                    </Grid.RowDefinitions>
+                    <GroupBox Grid.Row="0" x:Name="BracketView" Header="Bracket View"/>
+                    <Button Grid.Row="1" Height="40" Click="ExportBracket">Export Bracket</Button>
+                </Grid>
+            </TabItem>
+
+
+        </TabControl>
+
+    </Grid>
+</Window>

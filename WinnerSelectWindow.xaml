@@ -1,0 +1,66 @@
+﻿<Window x:Class="TourneyDiscordBotWPF.WinnerSelectWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:TourneyDiscordBotWPF"
+        mc:Ignorable="d"
+        Title="WinnerSelectWindow" Height="300" Width="800" ResizeMode="NoResize" SizeToContent="WidthAndHeight">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <DataTemplate DataType="{x:Type local:Player}">
+                <DockPanel>
+                    <Image Source="{Binding RankImage}" Width="26"/>
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                </DockPanel>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type local:Team2s}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" VerticalAlignment="Center" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Team ID: "></TextBlock>
+                        <TextBlock Text="{Binding ID}"></TextBlock>
+                    </StackPanel>
+                    <Rectangle Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" Width="Auto" Height="1" Margin="2" Stroke="Black" />
+                    <ContentControl Grid.Row="2" Content="{Binding Player1}" HorizontalAlignment="Left"/>
+                    <ContentControl Grid.Row="3" Content="{Binding Player2}" HorizontalAlignment="Left"/>
+                </Grid>
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type local:Matchup}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Select Match Winner" FontSize="48" HorizontalAlignment="Center"/>
+                    <Button Grid.Row="1" Grid.Column="0" FontSize="24" HorizontalAlignment="Stretch" Click="Team1_Won">
+                        <Button.Content>
+                            <ContentControl Content="{Binding Team1}"/>
+                        </Button.Content>
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1" FontSize="24" HorizontalAlignment="Stretch" Click="Team2_Won">
+                        <Button.Content>
+                            <ContentControl Content="{Binding Team2}"/>
+                        </Button.Content>
+                    </Button>
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <ContentPresenter x:Name="WinnerWindowContent"/>
+    </Grid>
+    
+</Window>
