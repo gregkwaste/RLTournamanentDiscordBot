@@ -251,13 +251,12 @@ namespace TourneyDiscordBot
             deleteChannel(sg, _tchannelMgr.ManagementChannelID);
             deleteChannel(sg, _tchannelMgr.AnnouncementChannelID);
             deleteChannel(sg, _tchannelMgr.RegistationChannelID);
+            deleteChannel(sg, _tchannelMgr.ScoreReportChannelID);
             deleteRole(sg, _tchannelMgr.RoleID);
             deleteCategoryChannel(sg, _tchannelMgr.CategoryChannelID);
 
-            await sg.DefaultChannel.SendMessageAsync("GAMW TH MANA SOU");
+            await sg.DefaultChannel.SendMessageAsync("Shutting down...");
             await _client.LogoutAsync();
-            return;
-            _client.Dispose();
         }
 
         private Task Log(LogMessage msg)

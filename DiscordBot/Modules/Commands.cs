@@ -691,7 +691,7 @@ namespace TourneyDiscordBot.Modules
                 //Dirty check to see if a tourney has already been created
                 if (_tChannelMgr.AnnouncementChannelID != 0xFFFFFFFFFFFFFFFF && _tChannelMgr.AnnouncementChannelID != 0)
                 {
-                    await ReplyAsync(string.Format("Another tournament has been created."));
+                    await ReplyAsync(string.Format("Unable to create tournament (another tournament has already been created.)"));
                     return;
                 }
 
@@ -738,21 +738,23 @@ namespace TourneyDiscordBot.Modules
                 _tChannelMgr.RoleID = role.Id;
 
                 EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
-                footerBuilder.Text = "Footer Text";
+                footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
 
                 EmbedBuilder builder = new EmbedBuilder();
-                builder.WithTitle("Zima Tournament " + DateTime.Now);
-                builder.Description = "Zima Weekly 2vs2 tournament. Register using !tourn join in " + reg_channel.Mention;
-                //builder.AddField("Cost", "3", true);    // true - for inline
-                //builder.AddField("HP", "665", true);
+                builder.WithTitle("RLFriday " + DateTime.Now);
+                builder.Description = "Zimarulis RLFriday 2vs2 tournament. " +
+                    "Τουρνουά Rocket League 2v2 με format good and bad. Για να είναι οι ομάδες δίκαιες και να δίνεται η ίδια δυνατότητα σε όλους" +
+                    " να κερδίσουν, οι ομάδες φτιάχνονται με βάση το rank των παικτών βάζοντας στην ίδια ομάδα έναν παίκτη υψηλού rank και έναν χαμηλού rank.\n";
+                //builder.AddField("test", true);
                 //builder.AddField("DPS", "42", true);
                 //builder.AddField("Hit Speed", "1.5sec", true);
                 //builder.AddField("SlowDown", "35%", true);
+                builder.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
                 //builder.AddField("AOE", "63", true);
                 //builder.WithThumbnailUrl("https://static.wikia.nocookie.net/rocketleague/images/7/7a/Halo_topper_icon.png/revision/latest/scale-to-width-down/256?cb=20200422210226");
-                builder.WithColor(Color.Red);
+                builder.WithColor(Color.Blue);
                 builder.Footer = footerBuilder;
-
+                //builder.WithFooter("EGG Gang - Zimarulis - RL Fridays");
                 //This command should be sent to the registration channel
                 var msg = await ann_channel.SendMessageAsync("", false, builder.Build());
 
@@ -880,16 +882,18 @@ namespace TourneyDiscordBot.Modules
 
                     EmbedBuilder builder = new EmbedBuilder();
                     builder.WithTitle("Registered Teams");
+                    builder.WithDescription("Οι ομάδες δημιουργήθηκαν. Επικοινωνήστε με τους συμπαίκτες σας και βρείτε τους in game.");
                     foreach (Team t in _tourney._teams)
                     {
-                        builder.AddField("Team " + t.ID, "\u200b");
+                        
                         
                         List<string> mentions = new List<string>();
                         for (int i = 0; i < t.Players.Count; i++)
                         {
                             Player p = t.Players[i];
-                            builder.AddField("Player " + i, TournamentModule.getPlayerDiscName(p, Context), true);
+                            mentions.Add(TournamentModule.getPlayerDiscName(p, Context) + "<:gc3:804811090474434571>");
                         }
+                        builder.AddField("Team " + t.ID, string.Join(" | ", mentions),false);
                     }
 
                     builder.WithColor(Color.Red);
@@ -976,8 +980,22 @@ namespace TourneyDiscordBot.Modules
                     _tourney.RegistrationsEnabled = true;
                     //Make announcement
                     //This command should be sent to the registration channel
-                    var _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as ISocketMessageChannel;
-                    await _channel.SendMessageAsync("Tournament Registrations are Open!");
+                    EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
+                    footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
+                    EmbedBuilder RegMessage = new EmbedBuilder();
+                    RegMessage.WithTitle("Οι εγγραφές άνοιξαν!");
+                    RegMessage.Description = "Οι εγγραφές άνοιξαν και θα παραμείνουν ανοιχτές μέχρι την έναρξη του τουρνουά στις 14:30! Θα ενημερωθείς με αντίστοιχο μύνημα όταν οι ομάδες φτιαχτούν.";
+                    RegMessage.AddField("Πως δηλώνω συμμετοχή", "Δηλώσε συμμετοχή γράφοντας !join (emote του rank) όπως στην παρακάτω εικόνα", false);    // true - for inline
+                    RegMessage.WithImageUrl("https://cdn.discordapp.com/attachments/805516317837885460/805516628505919488/unknown.png");
+                    RegMessage.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
+                    //builder.AddField("AOE", "63", true);
+                    //builder.WithThumbnailUrl("https://static.wikia.nocookie.net/rocketleague/images/7/7a/Halo_topper_icon.png/revision/latest/scale-to-width-down/256?cb=20200422210226");
+                    RegMessage.WithColor(Color.Blue);
+                    RegMessage.Footer = footerBuilder;
+                    var _channel = Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID) as ISocketMessageChannel;
+                    var msg = await _channel.SendMessageAsync("", false, RegMessage.Build());
+
+                    //await _channel.SendMessageAsync("Tournament Registrations are Open!");
                 }
 
                 [Command("close")]
@@ -987,7 +1005,7 @@ namespace TourneyDiscordBot.Modules
                     _tourney.RegistrationsEnabled = false;
                     //Make announcement
                     //This command should be sent to the registration channel
-                    var _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as ISocketMessageChannel;
+                    var _channel = Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID) as ISocketMessageChannel;
                     await _channel.SendMessageAsync("Tournament Registrations are Closed!");
                 }
 
