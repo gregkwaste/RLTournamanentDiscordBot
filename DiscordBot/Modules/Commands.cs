@@ -715,7 +715,7 @@ namespace TourneyDiscordBot.Modules
                         OverwritePermissions.DenyAll(mgmt_channel));
 
                 await ann_channel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole,
-                        OverwritePermissions.DenyAll(ann_channel).Modify(viewChannel: PermValue.Allow));
+                        OverwritePermissions.DenyAll(ann_channel).Modify(viewChannel: PermValue.Allow, readMessageHistory: PermValue.Allow));
 
                 //Store Channel IDs
                 _tChannelMgr.AnnouncementChannelID = ann_channel.Id;
@@ -745,17 +745,9 @@ namespace TourneyDiscordBot.Modules
                 builder.Description = "Zimarulis RLFriday 2vs2 tournament. " +
                     "Τουρνουά Rocket League 2v2 με format good and bad. Για να είναι οι ομάδες δίκαιες και να δίνεται η ίδια δυνατότητα σε όλους" +
                     " να κερδίσουν, οι ομάδες φτιάχνονται με βάση το rank των παικτών βάζοντας στην ίδια ομάδα έναν παίκτη υψηλού rank και έναν χαμηλού rank.\n";
-                //builder.AddField("test", true);
-                //builder.AddField("DPS", "42", true);
-                //builder.AddField("Hit Speed", "1.5sec", true);
-                //builder.AddField("SlowDown", "35%", true);
                 builder.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
-                //builder.AddField("AOE", "63", true);
-                //builder.WithThumbnailUrl("https://static.wikia.nocookie.net/rocketleague/images/7/7a/Halo_topper_icon.png/revision/latest/scale-to-width-down/256?cb=20200422210226");
                 builder.WithColor(Color.Blue);
                 builder.Footer = footerBuilder;
-                //builder.WithFooter("EGG Gang - Zimarulis - RL Fridays");
-                //This command should be sent to the registration channel
                 var msg = await ann_channel.SendMessageAsync("", false, builder.Build());
 
                 //Add Rank Reactions
@@ -877,12 +869,14 @@ namespace TourneyDiscordBot.Modules
                 [Summary("Announce Teams")]
                 public async Task Post()
                 {
-                    // EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
-                    //footerBuilder.Text = "Footer Text";
+                    EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
+                    footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
 
                     EmbedBuilder builder = new EmbedBuilder();
                     builder.WithTitle("Registered Teams");
                     builder.WithDescription("Οι ομάδες δημιουργήθηκαν. Επικοινωνήστε με τους συμπαίκτες σας και βρείτε τους in game.");
+                    builder.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
+
                     foreach (Team t in _tourney._teams)
                     {
                         
@@ -963,7 +957,26 @@ namespace TourneyDiscordBot.Modules
                 {
                     _tourney.bracket.GenerateSVG();
                     var _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as SocketTextChannel;
+                    EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
+                    footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
+
+                    var picture = await Context.Channel.SendFileAsync(@"bracket.png");
+
+                    string imgurl = picture.Attachments.First().Url;
+                    _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as SocketTextChannel;
                     await _channel.SendFileAsync("bracket.png", "Tournament Bracket");
+                    EmbedBuilder BracketMessage = new EmbedBuilder();
+                    BracketMessage.WithAuthor("RL Fridays");
+                    BracketMessage.WithTitle("Bracket");
+                    BracketMessage.Description = "Το bracket δημιουργήθηκε. Σύντομα θα ξεκινήσει ο πρώτος γύρος!";
+                    //RegMessage.AddField("Πως δηλώνω συμμετοχή", "Δηλώσε συμμετοχή γράφοντας !join (emote του rank) όπως στην παρακάτω εικόνα", false);    // true - for inline
+                    BracketMessage.WithImageUrl(imgurl);
+                    BracketMessage.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
+                    //builder.AddField("AOE", "63", true);
+                    //builder.WithThumbnailUrl("https://static.wikia.nocookie.net/rocketleague/images/7/7a/Halo_topper_icon.png/revision/latest/scale-to-width-down/256?cb=20200422210226");
+                    BracketMessage.WithColor(Color.Blue);
+                    BracketMessage.Footer = footerBuilder;
+                    var msg = await _channel.SendMessageAsync("", false, BracketMessage.Build());
                 }
             }
 
