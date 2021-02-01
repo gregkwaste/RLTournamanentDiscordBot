@@ -235,7 +235,7 @@ namespace TourneyDiscordBot.Modules
                         {
                             continue; //Match is concluded continue;
                         }
-                            
+
                         if (match.IsDummy && match.Winner != null)
                         {
                             continue; //Match is dummy but the winner status is already resolved. Nothing to do here
@@ -249,7 +249,7 @@ namespace TourneyDiscordBot.Modules
 
                         if (!match.IsValid)
                         {
-                            active_matchups++; //Match is pending to be populate probably from previous round
+                            active_matchups++; //Match is pending to be populated probably from previous round
                             continue;
                         }
                         else
@@ -283,8 +283,11 @@ namespace TourneyDiscordBot.Modules
                                 match.Lobby.Pass = rand_gen.Next(1000, 9999).ToString();
 
                                 //Send DM to t1 captain
-                                await Context.Guild.GetUser(match.Team1.Captain.DiscordID).SendMessageAsync(string.Format("Create Lobby with name: {0} and pass {1}. Reply with !tourn ready when the lobby has been generated.",
+                                await Context.Guild.GetUser(match.Team1.Captain.DiscordID).SendMessageAsync(string.Format("The tournament has officially started. Create a Lobby with name: {0} and pass {1}. Reply with !ready when you have created the lobby and I will send the credentials to the opposing team. Good luc!",
                                                                                     match.Lobby.Name, match.Lobby.Pass));
+                                await Context.Guild.GetUser(match.Team2.Captain.DiscordID).SendMessageAsync(string.Format("The tournament has officially started. Your opponents are responsible for creating a lobby this match!" +
+                                    " When the lobby is ready I will send you the lobby credentials." +
+                                    " If anything goes wrong, you can contact the opposing team captain here " + t1_captain + ". Good luck!"));
                                 
                                 await _channel.SendMessageAsync(string.Format("Round {0} - Match {1} | Team {2} vs Team {3} | Captains {4}, {5} check your dms",
                                                                         i, match.ID, match.Team1.ID, match.Team2.ID, t1_captain, t2_captain));
@@ -296,8 +299,8 @@ namespace TourneyDiscordBot.Modules
 
                             match.InProgress = true;
                         }
+                        
                     }
-
                     if (active_matchups > 0) break;
                 }
 
@@ -964,16 +967,12 @@ namespace TourneyDiscordBot.Modules
 
                     string imgurl = picture.Attachments.First().Url;
                     _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as SocketTextChannel;
-                    await _channel.SendFileAsync("bracket.png", "Tournament Bracket");
                     EmbedBuilder BracketMessage = new EmbedBuilder();
                     BracketMessage.WithAuthor("RL Fridays");
                     BracketMessage.WithTitle("Bracket");
                     BracketMessage.Description = "Το bracket δημιουργήθηκε. Σύντομα θα ξεκινήσει ο πρώτος γύρος!";
-                    //RegMessage.AddField("Πως δηλώνω συμμετοχή", "Δηλώσε συμμετοχή γράφοντας !join (emote του rank) όπως στην παρακάτω εικόνα", false);    // true - for inline
                     BracketMessage.WithImageUrl(imgurl);
                     BracketMessage.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
-                    //builder.AddField("AOE", "63", true);
-                    //builder.WithThumbnailUrl("https://static.wikia.nocookie.net/rocketleague/images/7/7a/Halo_topper_icon.png/revision/latest/scale-to-width-down/256?cb=20200422210226");
                     BracketMessage.WithColor(Color.Blue);
                     BracketMessage.Footer = footerBuilder;
                     var msg = await _channel.SendMessageAsync("", false, BracketMessage.Build());
