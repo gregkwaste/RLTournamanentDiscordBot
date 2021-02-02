@@ -10,6 +10,11 @@ using TourneyDiscordBotWPF.Common;
 
 namespace TourneyDiscordBotWPF
 {
+    public class TeamInvitation
+    {
+        public Team team { get; set; } = null;
+    }
+
     public class Player
     {
         public int ID { get; set; }
@@ -18,11 +23,35 @@ namespace TourneyDiscordBotWPF
         public string Name { get; set; }
 
         public Rank Rank { get; set; }
+        
+        public Team team { get; set; }
+
+        public List<TeamInvitation> Invitations = new List<TeamInvitation>();
 
         public void setRankFromText(string rank_text)
         {
             //TODO: CHeck if parse failed
             Rank = Common.Common.getRankFromText(rank_text);
+        }
+
+        public void acceptInvitation(TeamInvitation inv)
+        {
+            if (inv.team is Team2s)
+            {
+                (inv.team as Team2s).addPlayer(this);
+                Invitations.Remove(inv); //Simply remove invitation
+            } else if (inv.team is Team3s)
+            {
+                (inv.team as Team3s).addPlayer(this);
+                Invitations.Remove(inv); //Simply remove invitation
+            }
+            
+            
+        }
+
+        public void rejectInvitation(TeamInvitation inv)
+        {
+            Invitations.Remove(inv); //Simply remove invitation
         }
 
     }
@@ -31,6 +60,20 @@ namespace TourneyDiscordBotWPF
     {
         public int ID { get; set; }
         public bool IsDummy { get; set; } = false;
+
+        private string _name = "";
+        public string Name {
+            get
+            {
+                if (_name == "")
+                    return "Team " + ID.ToString();
+                return _name;
+            }
+            set
+            {
+                _name = value;
+            }
+        }
 
         public Player Captain { get; set; }
 
@@ -51,6 +94,29 @@ namespace TourneyDiscordBotWPF
         }
     }
 
+    public class Team1s : Team
+    {
+        public Player Player1 { get; set; }
+        
+        public override List<Player> Players
+        {
+            get { return new List<Player>() { Player1 }; }
+        }
+
+        public bool addPlayer(Player p)
+        {
+            if (Player1 == null)
+            {
+                Player1 = p;
+                Captain = p;
+                p.team = this;
+                return true;
+            }
+            return false;
+        }
+
+    }
+
     public class Team2s : Team
     {
         public Player Player1 { get; set; }
@@ -61,6 +127,22 @@ namespace TourneyDiscordBotWPF
             get { return new List<Player>() { Player1, Player2 }; }
         }
 
+        public bool addPlayer(Player p)
+        {
+            if (Player1 == null)
+            {
+                Player1 = p;
+                Captain = p;
+                p.team = this;
+                return true;
+            } else if (Player2 == null)
+            {
+                Player2 = p;
+                p.team = this;
+                return true;
+            }
+            return false;
+        }
     }
 
     public class Team3s : Team
@@ -72,6 +154,30 @@ namespace TourneyDiscordBotWPF
         public override List<Player> Players
         {
             get { return new List<Player>() { Player1, Player2, Player3 }; }
+        }
+
+        public bool addPlayer(Player p)
+        {
+            if (Player1 == null)
+            {
+                Player1 = p;
+                Captain = p;
+                p.team = this;
+                return true;
+            }
+            else if (Player2 == null)
+            {
+                Player2 = p;
+                p.team = this;
+                return true;
+            }
+            else if (Player3 == null)
+            {
+                Player3 = p;
+                p.team = this;
+                return true;
+            }
+            return false;
         }
     }
 
@@ -163,6 +269,16 @@ namespace TourneyDiscordBotWPF
                 _winner = value;
                 _isFinished = (value is null) ? false : true;
                 InProgress = false;
+
+                //Progress winner to the next round
+                if (Next != null)
+                {
+                    if (Next.Team1 != null)
+                        Next.Team2 = _winner;
+                    else
+                        Next.Team1 = _winner;
+                }
+                
                 NotifyPropertyChanged("Winner");
                 NotifyPropertyChanged("Color");
             }

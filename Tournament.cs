@@ -7,11 +7,26 @@ using System.Windows;
 
 namespace TourneyDiscordBotWPF
 {
+    public enum TournamentType
+    {
+        SOLO,
+        DOUBLES,
+        TRIPLES
+    }
+
+    public enum TournamentTeamGenMethod
+    {
+        RANDOM,
+        REGISTER
+    }
+
     public class Tournament
     {
         public List<Player> _players = new List<Player>();
         public List<Team> _teams = new List<Team>();
         public Bracket bracket;
+        public TournamentType Type { get; set; }
+        public TournamentTeamGenMethod TeamGenMethod { get; set; }
 
         public ObservableCollection<Player> Players
         {
@@ -35,6 +50,17 @@ namespace TourneyDiscordBotWPF
 
         public bool IsFinished { get; set; } = false;
 
+        
+        
+        public void setTournamentType(TournamentType t)
+        {
+            Type = t;
+        }
+
+        public void setTournamentTeamGenMethod(TournamentTeamGenMethod t)
+        {
+            TeamGenMethod = t;
+        }
 
         public void ClearPlayers()
         {
@@ -46,6 +72,26 @@ namespace TourneyDiscordBotWPF
             _teams.Clear();
         }
 
+        public Player getPlayer(string username)
+        {
+            foreach (Player p in _players)
+            {
+                if (p.Name == username)
+                    return p;
+            }
+            return null;
+        }
+
+        public Player getPlayerbyDiscordID(ulong id)
+        {
+            foreach (Player p in _players)
+            {
+                if (p.DiscordID == id)
+                    return p;
+            }
+            return null;
+        }
+
         public void Clear()
         {
             bracket = null;
@@ -53,7 +99,7 @@ namespace TourneyDiscordBotWPF
             ClearPlayers();
         }
 
-        public bool CreatePlayer(string name, string rank_name, ulong discord_id=0xFFFFFFFFFFFF)
+        public bool CreatePlayer(string name, string rank_name, ulong discord_id=0)
         {
             if (!Common.Common.rankExists(rank_name))
                 return false;
@@ -76,7 +122,45 @@ namespace TourneyDiscordBotWPF
             }
         }
 
-        public void CreateTeams()
+        public bool CreateTeams()
+        {
+            if (Type == TournamentType.SOLO)
+                return CreateTeams1s();
+            if (Type == TournamentType.DOUBLES)
+                return CreateTeams2s();
+            if (Type == TournamentType.TRIPLES)
+                return CreateTeams3s();
+
+            return false;
+        }
+
+        public bool CreateTeams1s()
+        {
+            //By default we're generating teams for 2s
+            
+            List<Player> tempPlayers = new List<Player>();
+            foreach (Player p in _players)
+                tempPlayers.Add(p);
+            
+            _teams.Clear();
+
+            while (tempPlayers.Count > 0)
+            {
+                Team1s t = new Team1s();
+                t.ID = _teams.Count;
+                t.Player1 = tempPlayers.First();
+                t.Captain = t.Player1;
+
+                //Remove the entires
+                tempPlayers.RemoveAt(0);
+                
+                _teams.Add(t);
+            }
+
+            return true;
+        }
+
+        public bool CreateTeams2s()
         {
             //By default we're generating teams for 2s
 
@@ -89,8 +173,8 @@ namespace TourneyDiscordBotWPF
 
             if (tempPlayers.Count % 2 > 0)
             {
-                MessageBox.Show("ZIMA BALE ALLON ENAN XUMA PAIXTH KAI KSANAPATA");
-                return;
+                //MessageBox.Show("ZIMA BALE ALLON ENAN XUMA PAIXTH KAI KSANAPATA");
+                return false;
             }
 
 
@@ -109,6 +193,48 @@ namespace TourneyDiscordBotWPF
                 _teams.Add(t);
             }
 
+            return true;
+        }
+
+        public bool CreateTeams3s()
+        {
+            //By default we're generating teams for 2s
+
+            List<Player> tempPlayers = new List<Player>();
+            foreach (Player p in _players)
+                tempPlayers.Add(p);
+
+            Random rnd = new Random();
+            List<Player> randPlayerList = tempPlayers.Select(x => new { value = x, order = rnd.Next() })
+            .OrderBy(x => x.order).Select(x => x.value).ToList();
+
+
+            if (tempPlayers.Count % 3 > 0)
+            {
+                //MessageBox.Show("ZIMA BALE PAIXTES NA BGAINOUN TRIADES");
+                return false;
+            }
+
+            _teams.Clear();
+
+            while (tempPlayers.Count > 0)
+            {
+                Team3s t = new Team3s();
+                t.ID = _teams.Count;
+                t.Player1 = tempPlayers[0];
+                t.Player2 = tempPlayers[1];
+                t.Player3 = tempPlayers[2];
+                t.Captain = t.Player1; //Always set captain to player 1 (Random anyway)
+
+                //Remove the entires
+                tempPlayers.RemoveAt(0);
+                tempPlayers.RemoveAt(1);
+                tempPlayers.RemoveAt(2);
+                
+                _teams.Add(t);
+            }
+
+            return true;
         }
 
         public void ExportBracket()

@@ -33,17 +33,9 @@ namespace TourneyDiscordBotWPF
             else
                 match.Winner = match.Team2;
 
-            //Progress winner to the next round
-            if (match.Next != null)
+            //Check if this is the final
+            if (match.Next == null)
             {
-                if (match.Next.Team1 != null)
-                    match.Next.Team2 = match.Winner;
-                else
-                    match.Next.Team1 = match.Winner;
-            }
-            else
-            {
-                //This was probably the final
                 string message = "CONGRATS TO ";
 
                 if (match.Winner is Team2s)

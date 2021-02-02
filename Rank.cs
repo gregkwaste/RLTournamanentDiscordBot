@@ -26,7 +26,6 @@ namespace TourneyDiscordBotWPF
             _rank = getRankFromText(rank_name);
 
             //Set Image
-
             switch (_rank)
             {
                 case RL_RANK.BRONZE_I:

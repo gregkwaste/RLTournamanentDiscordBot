@@ -27,6 +27,7 @@ namespace TourneyDiscordBotWPF
 
             SvgColourServer blackPainter = new SvgColourServer(Color.Black);
             SvgColourServer whitePainter = new SvgColourServer(Color.White);
+            SvgColourServer grayPainter = new SvgColourServer(Color.Gray);
             SvgColourServer greenPainter = new SvgColourServer(Color.LightGreen);
 
             
@@ -34,8 +35,9 @@ namespace TourneyDiscordBotWPF
             int matchup_width = 400;
             int matchup_height = 150;
             int matchup_team_x_offset = 20;
-            int matchup_team_y_offset = 10;
+            int matchup_team_y_offset = 50;
             int matchup_team_font_size = 36;
+            int matchup_vs_font_size = 24;
 
             int matchup_offset_y = 0;
             int matchup_gap_y = 10;
@@ -68,34 +70,163 @@ namespace TourneyDiscordBotWPF
                     else
                         rec.Fill = greenPainter;
 
+                    doc.Children.Add(rec);
+
+                    //Team 1 Text
                     string team_text = "TBD";
+                    string team_id = "";
                     if (m.Team1 != null)
-                        team_text = "Team " + (m.Team1 != null ? m.Team1.ID : -1).ToString();
+                    {
+                        if (m.Team1.IsDummy)
+                            team_text = "-";
+                        else
+                        {
+                            team_text = m.Team1.Name;
+                            team_id = m.Team1.ID.ToString("00");
+                        }
+                            
+                    }
 
                     //Add Text
-                    SvgText t1 = new SvgText(team_text);
+                    //Τeam ID
+                    SvgText t1 = new SvgText(team_id);
+                    t1.FontSize = matchup_team_font_size;
+                    t1.X.Add(round_x_offset + matchup_team_x_offset - 10);
+                    t1.Y.Add(round_y_offset + matchup_team_y_offset);
+                    doc.Children.Add(t1);
+
+                    //Τeam Name
+                    t1 = new SvgText(team_text);
                     t1.FontSize = matchup_team_font_size;
                     t1.X.Add(round_x_offset + 50 + matchup_team_x_offset);
-                    t1.Y.Add(round_y_offset + 36 + matchup_team_y_offset);
+                    t1.Y.Add(round_y_offset + matchup_team_y_offset);
+                    doc.Children.Add(t1);
 
                     SvgText t3 = new SvgText("vs");
-                    t3.FontSize = matchup_team_font_size;
-                    t3.X.Add(round_x_offset + matchup_team_x_offset + 10);
-                    t3.Y.Add(round_y_offset + 72 + matchup_team_y_offset);
+                    t3.FontSize = matchup_vs_font_size;
+                    t3.X.Add(round_x_offset + matchup_team_x_offset);
+                    t3.Y.Add(round_y_offset + 5 + matchup_height / 2.0f);
+                    doc.Children.Add(t3);
+                    
+                    //Horizontal Matchup Splitter Line Part 1
+                    //Add horizontal line
+                    SvgLine hl1 = new SvgLine();
+                    hl1.Stroke = blackPainter;
+                    hl1.StrokeWidth = 5;
+                    hl1.StrokeOpacity = 1.0f;
+                    hl1.FillOpacity = 1.0f;
+                    hl1.StartX = round_x_offset + matchup_team_x_offset + 40;
+                    hl1.StartY = round_y_offset + matchup_height / 2.0f;
+                    hl1.EndX = round_x_offset + matchup_width;
+                    hl1.EndY = hl1.StartY;
+                    doc.Children.Add(hl1);
 
+
+                    //Vertical Line on the splitter
+                    SvgLine vl1 = new SvgLine();
+                    vl1.Stroke = blackPainter;
+                    vl1.StrokeWidth = 5;
+                    vl1.StrokeOpacity = 1.0f;
+                    vl1.FillOpacity = 1.0f;
+                    vl1.StartX = hl1.StartX;
+                    vl1.StartY = hl1.StartY;
+                    vl1.EndX = vl1.StartX;
+                    vl1.EndY = hl1.StartY - matchup_height / 2.0f;
+                    doc.Children.Add(vl1);
+
+                    SvgLine vl2 = new SvgLine();
+                    vl2.Stroke = blackPainter;
+                    vl2.StrokeWidth = 5;
+                    vl2.StrokeOpacity = 1.0f;
+                    vl2.FillOpacity = 1.0f;
+                    vl2.StartX = hl1.StartX;
+                    vl2.StartY = hl1.StartY;
+                    vl2.EndX = vl1.StartX;
+                    vl2.EndY = hl1.StartY + matchup_height / 2.0f;
+                    doc.Children.Add(vl2);
+
+
+                    //Team 2 Text
                     team_text = "TBD";
+                    team_id = "";
                     if (m.Team2 != null)
-                        team_text = "Team " + (m.Team2 != null ? m.Team2.ID : -1).ToString();
+                    {
+                        if (m.Team2.IsDummy)
+                            team_text = "-";
+                        else
+                        {
+                            team_text = m.Team2.Name;
+                            team_id = m.Team2.ID.ToString("00");
+                        }
+                            
+                    }
 
-                    SvgText t2 = new SvgText(team_text);
+                    //Τeam ID
+                    SvgText t2 = new SvgText(team_id);
+                    t2.FontSize = matchup_team_font_size;
+                    t2.X.Add(round_x_offset + matchup_team_x_offset - 10);
+                    t2.Y.Add(round_y_offset + matchup_height / 2.0f + matchup_team_y_offset);
+                    doc.Children.Add(t2);
+
+                    t2 = new SvgText(team_text);
                     t2.FontSize = matchup_team_font_size;
                     t2.X.Add(round_x_offset + 50 + matchup_team_x_offset);
-                    t2.Y.Add(round_y_offset + 108 + matchup_team_y_offset);
-                    
-                    doc.Children.Add(rec);
-                    doc.Children.Add(t1);
-                    doc.Children.Add(t3);
+                    t2.Y.Add(round_y_offset + matchup_height / 2.0f + matchup_team_y_offset);
                     doc.Children.Add(t2);
+
+                    //Draw Matchup Connector to next Matchup
+                    if (r_i != Rounds.Count - 1)
+                    {
+                        
+                        //Add horizontal line
+                        SvgLine l = new SvgLine();
+                        l.Stroke = grayPainter;
+                        l.StrokeWidth = 5;
+                        l.StrokeOpacity = 1.0f;
+                        l.FillOpacity = 1.0f;
+                        l.StartX = round_x_offset + matchup_width;
+                        l.StartY = round_y_offset + matchup_height / 2.0f;
+                        l.EndX = l.StartX + round_gap / 2.0f;
+                        l.EndY = l.StartY;
+                        doc.Children.Add(l);
+
+                        //Vertical Line
+                        SvgLine l1 = new SvgLine();
+                        l1.Stroke = grayPainter;
+                        l1.StrokeWidth = 5;
+                        l1.StrokeOpacity = 1.0f;
+                        l1.FillOpacity = 1.0f;
+                        l1.StartX = l.EndX;
+                        l1.StartY = l.EndY;
+                        l1.EndX = l.EndX;
+
+                        if (m_i % 2 == 0)
+                        {
+                            l1.EndY = l.StartY + (matchup_height + matchup_gap_y) / 2.0f;
+                            
+                        } else
+                        {
+                            l1.EndY = l.StartY - (matchup_height + matchup_gap_y) / 2.0f;
+                        }
+                        doc.Children.Add(l1);
+
+                        //Last horizontal line
+                        SvgLine l2 = new SvgLine();
+                        l2.Stroke = grayPainter;
+                        l2.StrokeWidth = 5;
+                        l2.StrokeOpacity = 1.0f;
+                        l2.FillOpacity = 1.0f;
+                        l2.StartX = l1.EndX;
+                        l2.StartY = l1.EndY;
+                        l2.EndX = l1.EndX + round_gap / 2.0f;
+                        l2.EndY = l1.EndY;
+                        doc.Children.Add(l2);
+
+                    }
+                    
+                    
+                    
+                    
                 }
 
                 //Update Matchup gaps and offsets
@@ -152,6 +283,20 @@ namespace TourneyDiscordBotWPF
                     t.IsDummy = true;
                     teamsTemp.Add(t);
                 }
+                else if (teams[0] is Team1s)
+                {
+                    Team1s t = new Team1s();
+                    t.ID = -1;
+                    t.IsDummy = true;
+                    teamsTemp.Add(t);
+                }
+                else if (teams[0] is Team3s)
+                {
+                    Team3s t = new Team3s();
+                    t.ID = -1;
+                    t.IsDummy = true;
+                    teamsTemp.Add(t);
+                }
                 else
                 {
                     Console.WriteLine("Not Supported");
@@ -189,19 +334,7 @@ namespace TourneyDiscordBotWPF
                     match.ResolveDummyness();
 
                     if (match.Winner != null)
-                    {
                         matches_updated++;
-
-                        if (match.Next != null)
-                        {
-                            if (match.Next.Team1 != null)
-                                match.Next.Team2 = match.Winner;
-                            else
-                                match.Next.Team1 = match.Winner;
-                        }
-                    }
-
-
                 }
 
                 if (matches_updated == 0)
