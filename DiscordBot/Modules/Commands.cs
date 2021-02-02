@@ -15,7 +15,7 @@ namespace TourneyDiscordBot.Modules
     {
         public CommandService _commands { get; set; }
         public BotConfig _conf { get; set; }
-        public Tournament _tourney { get; set; }
+        public DiscordDataService _data { get; set; }
         public TournamentChannelManager _tChannelMgr { get; set; }
 
 
@@ -80,15 +80,8 @@ namespace TourneyDiscordBot.Modules
         public class TournamentModule : ModuleBase<SocketCommandContext>
         {
 
-            public Tournament _tourney { get; set; }
+            public DiscordDataService _data { get; set; }
             public TournamentChannelManager _tChannelMgr { get; set; }
-
-            public TournamentModule(Tournament t, TournamentChannelManager tc) : base()
-            {
-                _tourney = t;
-                _tChannelMgr = tc;
-            }
-
 
             [Command("leave")]
             public async Task Unjoin()
@@ -96,12 +89,12 @@ namespace TourneyDiscordBot.Modules
                 var user = Context.User;
                 await ReplyAsync(string.Format("User {0} left the tournament", Context.User.Username));
             }
-
-
+            
+            
             [Command("join")]
             public async Task Join(string rank)
             {
-                if (!_tourney.RegistrationsEnabled)
+                if (!_data._tourney.RegistrationsEnabled)
                 {
                     await ReplyAsync(string.Format("Sorry {0} Registrations are Closed!", Context.User.Mention));
                     return;
@@ -188,7 +181,17 @@ namespace TourneyDiscordBot.Modules
                         break;
                 }
 
-                bool status = _tourney.CreatePlayer(Context.User.Username, rank_text, user.Id);
+                //Check if player exists
+                Player p = _data._tourney.getPlayerbyDiscordID(Context.User.Id);
+                if ( p != null)
+                {
+                    var msg = await ReplyAsync(user.Mention + " You have already joined!");
+                    await Task.Delay(500);
+                    await msg.DeleteAsync();
+                    return;
+                }
+
+                bool status = _data._tourney.CreatePlayer(Context.User.Username, rank_text, user.Id);
 
                 if (!status)
                     await ReplyAsync(string.Format("Input rank {0} not found", rank));
@@ -197,41 +200,28 @@ namespace TourneyDiscordBot.Modules
                     //Assign Tournament Role to user
                     var u = user as SocketGuildUser;
                     await u.AddRoleAsync(Context.Guild.GetRole(_tChannelMgr.RoleID));
-                    var msg = await ReplyAsync(string.Format("{0} has successfully joined the tournament", user.Mention));
-                    await Task.Delay(500);
-                    await msg.DeleteAsync();
-                    //user.SendMessageAsync("Mpes tournoua na se ksekolliasoume");
+                    await ReplyAsync(string.Format("{0} has successfully joined the tournament", user.Mention));
                 }
 
+                await Task.Delay(500);
+                await Context.Message.DeleteAsync();
             }
 
-
-            [Command("advance")]
-            [Summary("Checks tournament progress")]
-            public async Task Advance()
+            public static void advance(SocketCommandContext _ctx, TournamentChannelManager channelMgr, Tournament t)
             {
-                //This command should report to the accouncment channel
-                var _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as ISocketMessageChannel;
-                
-                if (_tourney.bracket == null)
-                {
-                    await _channel.SendMessageAsync(string.Format("Bracked not generated."));
-                    return;
-                }
 
-                if (!_tourney.IsStarted)
-                {
-                    await _channel.SendMessageAsync(string.Format("Tournament Not Started Yet."));
-                    return;
-                }
+                //This command should report to the accouncment channel
+                var _channel = _ctx.Guild.GetChannel(channelMgr.AnnouncementChannelID) as ISocketMessageChannel;
+                var _mgmtChannel = _ctx.Guild.GetChannel(channelMgr.ManagementChannelID) as ISocketMessageChannel;
 
                 //Iterate in tournament rounds
-                for (int i = 0; i < _tourney.bracket.Rounds.Count; i++){
-                    Round r = _tourney.bracket.Rounds[i];
+                for (int i = 0; i < t.bracket.Rounds.Count; i++)
+                {
+                    Round r = t.bracket.Rounds[i];
                     int active_matchups = 0;
                     foreach (Matchup match in r.Matchups)
                     {
-                        if (match.Winner!= null)
+                        if (match.Winner != null)
                         {
                             continue; //Match is concluded continue;
                         }
@@ -255,25 +245,12 @@ namespace TourneyDiscordBot.Modules
                         else
                         {
                             //Send Announcement
-                            bool t1_hasDisc = false;
-                            bool t2_hasDisc = false;
+                            bool t1_hasDisc = PlayerHasDiscord(match.Team1.Captain);
+                            bool t2_hasDisc = PlayerHasDiscord(match.Team2.Captain);
 
+                            string t1_captain = getPlayerDiscName(match.Team1.Captain, _ctx);
+                            string t2_captain = getPlayerDiscName(match.Team2.Captain, _ctx);
 
-                            string t1_captain = match.Team1.Captain.Name;
-                            string t2_captain = match.Team2.Captain.Name;
-
-                            if (match.Team1.Captain.DiscordID != 0xFFFFFFFFFFFF)
-                            {
-                                t1_captain = Context.Guild.GetUser(match.Team1.Captain.DiscordID).Mention;
-                                t1_hasDisc = true;
-                            }
-                                
-                            if (match.Team2.Captain.DiscordID != 0xFFFFFFFFFFFF)
-                            {
-                                t2_captain = Context.Guild.GetUser(match.Team2.Captain.DiscordID).Mention;
-                                t2_hasDisc = true;
-                            }
-                            
                             if (t1_hasDisc && t2_hasDisc)
                             {
                                 //Generate RL Lobby
@@ -283,37 +260,59 @@ namespace TourneyDiscordBot.Modules
                                 match.Lobby.Pass = rand_gen.Next(1000, 9999).ToString();
 
                                 //Send DM to t1 captain
-                                await Context.Guild.GetUser(match.Team1.Captain.DiscordID).SendMessageAsync(string.Format("The tournament has officially started. Create a Lobby with name: {0} and pass {1}. Reply with !ready when you have created the lobby and I will send the credentials to the opposing team. Good luc!",
+                                _ctx.Guild.GetUser(match.Team1.Captain.DiscordID).SendMessageAsync(string.Format("Create a Lobby with name: {0} and pass {1}. " +
+                                    "Reply with !ready when you have created the lobby and I will send the credentials to the opposing team. Good luck!",
                                                                                     match.Lobby.Name, match.Lobby.Pass));
-                                await Context.Guild.GetUser(match.Team2.Captain.DiscordID).SendMessageAsync(string.Format("The tournament has officially started. Your opponents are responsible for creating a lobby this match!" +
-                                    " When the lobby is ready I will send you the lobby credentials." +
-                                    " If anything goes wrong, you can contact the opposing team captain here " + t1_captain + ". Good luck!"));
-                                
-                                await _channel.SendMessageAsync(string.Format("Round {0} - Match {1} | Team {2} vs Team {3} | Captains {4}, {5} check your dms",
-                                                                        i, match.ID, match.Team1.ID, match.Team2.ID, t1_captain, t2_captain));
-                            } else
+                                _ctx.Guild.GetUser(match.Team2.Captain.DiscordID).SendMessageAsync(string.Format("Your opponents are responsible for creating a lobby this match!" +
+                                     " When the lobby is ready you will receive the lobby credentials." +
+                                    " If anything goes wrong, you can contact the opposing team captain here {0}. Good luck!", t1_captain));
+
+                                _channel.SendMessageAsync(string.Format("Round {0} - Match {1} | {2} vs {3} | Captains {4}, {5} check your dms",
+                                                                        i, match.ID, match.Team1.Name, match.Team2.Name, t1_captain, t2_captain));
+                            }
+                            else
                             {
-                                await _channel.SendMessageAsync(string.Format("Round {0} - Match {1} | Team {2} vs Team {3} | Captains {4}, {5} discord comms not supported",
-                                                                        i, match.ID, match.Team1.ID, match.Team2.ID, t1_captain, t2_captain));
+                                _channel.SendMessageAsync(string.Format("Round {0} - Match {1} | {2} vs {3} | Captains {4}, {5} discord comms not supported",
+                                                                        i, match.ID, match.Team1.Name, match.Team2.Name, t1_captain, t2_captain));
                             }
 
                             match.InProgress = true;
                         }
-                        
+
                     }
                     if (active_matchups > 0) break;
                 }
 
                 //Check if tournament has finished
-
-                Matchup final = _tourney.bracket.Rounds.Last().Matchups.Last();
+                Matchup final = t.bracket.Rounds.Last().Matchups.Last();
                 if (final.Winner != null)
                 {
-
-                    await _channel.SendMessageAsync(string.Format("DING DING DING WE HAVE A WINNER!!!!! Congrats to Team {0} for winning the tournament!",
-                                                                        final.Winner.ID));
+                    var _role = _ctx.Guild.GetRole(channelMgr.RoleID);
+                    _channel.SendMessageAsync(string.Format("{1} DING DING DING WE HAVE A WINNER!!!!! Congrats to {0} for winning the tournament!",
+                                                                        final.Winner.Name, _role.Mention));
                 }
-               
+            }
+            
+            [Command("advance")]
+            [Summary("Checks tournament progress")]
+            public async Task Advance()
+            {
+                //This command should report to the accouncment channel
+                var _mgmtChannel = Context.Guild.GetChannel(_tChannelMgr.ManagementChannelID) as ISocketMessageChannel;
+                
+                if (_data._tourney.bracket == null)
+                {
+                    await _mgmtChannel.SendMessageAsync(string.Format("Bracked not generated."));
+                    return;
+                }
+
+                if (!_data._tourney.IsStarted)
+                {
+                    await _mgmtChannel.SendMessageAsync(string.Format("Tournament Not Started Yet."));
+                    return;
+                }
+
+                TournamentModule.advance(Context, _tChannelMgr, _data._tourney);
             }
 
             public static bool checkIfContextUserAdmin(SocketCommandContext _ctx)
@@ -322,6 +321,10 @@ namespace TourneyDiscordBot.Modules
 
                 if (u.GuildPermissions.Administrator)
                     return true;
+
+                var msg = _ctx.Channel.SendMessageAsync("Admin Only Command").GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(2000);
+                msg.DeleteAsync().GetAwaiter().GetResult();
                 return false;
             }
 
@@ -334,7 +337,7 @@ namespace TourneyDiscordBot.Modules
 
             public static bool PlayerHasDiscord(Player p)
             {
-                if (p.DiscordID != 0xFFFFFFFFFFFF)
+                if (p.DiscordID != 0)
                     return true;
                 return false;
             }
@@ -348,14 +351,14 @@ namespace TourneyDiscordBot.Modules
 
                 //Find the Authors active matchup
                 bool matchup_found = false;
-                foreach (Round round in _tourney.bracket.Rounds)
+                foreach (Round round in _data._tourney.bracket.Rounds)
                 {
                     foreach (Matchup match in round.Matchups)
                     {
                         if (match.InProgress)
                         {
                             //Search for player discord ID. First message is sent always to the captain of the first team
-                            if ((match.Team1.Captain.DiscordID == disc_id && disc_id != 0xFFFFFFFFFFFF) || match.Team1.Captain.Name == username)
+                            if ((match.Team1.Captain.DiscordID == disc_id && disc_id != 0) || match.Team1.Captain.Name == username)
                             {
                                 matchup_found = true;
 
@@ -374,9 +377,7 @@ namespace TourneyDiscordBot.Modules
                                                              getPlayerDiscName(match.Team1.Captain, Context), status, match.ID, round.ID, getPlayerDiscName(match.Team2.Captain, Context)));
                                 }
 
-                            }
-
-                            if ((match.Team2.Captain.DiscordID == disc_id && disc_id != 0xFFFFFFFFFFFF) || match.Team2.Captain.Name == username)
+                            } else if ((match.Team2.Captain.DiscordID == disc_id && disc_id != 0) || match.Team2.Captain.Name == username)
                             {
                                 matchup_found = true;
 
@@ -400,16 +401,21 @@ namespace TourneyDiscordBot.Modules
                             if (match.Team2ReportedWinner != null && match.Team2ReportedWinner == match.Team1ReportedWinner && match.Winner == null)
                             {
                                 match.Winner = match.Team1ReportedWinner;
-                                _scoreChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Team {2} Won. Congratulations!",
-                                                                 round.ID, match.ID, match.Winner.ID));
-                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Team {2} Won. Congratulations!",
-                                                                 round.ID, match.ID, match.Winner.ID));
+                                _scoreChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - {2} Won. Congratulations!",
+                                                                 round.ID, match.ID, match.Winner.Name));
+                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - {2} Won. Congratulations!",
+                                                                 round.ID, match.ID, match.Winner.Name));
+                                advance(Context, _tChannelMgr, _data._tourney); //Automatically advance tourney
+                                return;
+
                             } else if(match.Team1ReportedWinner != null && match.Team2ReportedWinner!=null && match.Team2ReportedWinner != match.Team1ReportedWinner)
                             {
                                 _scoreChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Different result reports detected. Tournament Manager has been notified to resolve the issue.",
                                                                  round.ID, match.ID));
-                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} : Team {2} vs Team {3} Wrong reports. Set the result manually",
-                                                                 round.ID, match.ID, match.Team1.ID, match.Team2.ID));
+                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} : {2} vs {3} Wrong reports. Set the result manually",
+                                                                 round.ID, match.ID, match.Team1.Name, match.Team2.Name));
+                                advance(Context, _tChannelMgr, _data._tourney);//Automatically advance tourney
+                                return;
                             }
                         }
                     }
@@ -429,14 +435,14 @@ namespace TourneyDiscordBot.Modules
 
                 //Find the Authors active matchup
                 bool matchup_found = false;
-                foreach (Round round in _tourney.bracket.Rounds)
+                foreach (Round round in _data._tourney.bracket.Rounds)
                 {
                     foreach (Matchup match in round.Matchups)
                     {
                         if (match.InProgress)
                         {
                             //Search for player discord ID. First message is sent always to the captain of the first team
-                            if ((match.Team1.Captain.DiscordID == disc_id && disc_id != 0xFFFFFFFFFFFF) || match.Team1.Captain.Name == username)
+                            if ((match.Team1.Captain.DiscordID == disc_id && disc_id != 0) || match.Team1.Captain.Name == username)
                             {
                                 matchup_found = true;
 
@@ -447,30 +453,29 @@ namespace TourneyDiscordBot.Modules
 
                                 match.Team1ReportedWinner = match.Winner;
                                 match.Team2ReportedWinner = match.Winner;
-                            }
-
-                            if ((match.Team2.Captain.DiscordID == disc_id && disc_id != 0xFFFFFFFFFFFF) || match.Team2.Captain.Name == username)
-                            {
-                                matchup_found = true;
-
-                                if (status == "W")
-                                    match.Winner = match.Team2;
-                                else
-                                    match.Winner = match.Team1;
-
-                                match.Team1ReportedWinner = match.Winner;
-                                match.Team2ReportedWinner = match.Winner;
-
                                 
+                            } else if ((match.Team2.Captain.DiscordID == disc_id && disc_id != 0) || match.Team2.Captain.Name == username)
+                            {
+                                matchup_found = true;
+
+                                if (status == "W")
+                                    match.Winner = match.Team2;
+                                else
+                                    match.Winner = match.Team1;
+
+                                match.Team1ReportedWinner = match.Winner;
+                                match.Team2ReportedWinner = match.Winner;
                             }
 
                             if (matchup_found)
                             {
                                 //If matchup found the winner has been set
-                                _scoreChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Forced win for Team {2}.",
-                                                                 round.ID, match.ID, match.Winner.ID));
-                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Forced win for Team {2}.",
-                                                                 round.ID, match.ID, match.Winner.ID));
+                                _scoreChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Forced win for {2}.",
+                                                                 round.ID, match.ID, match.Winner.Name));
+                                _mgmtChannel.SendMessageAsync(string.Format("Round {0} - Match {1} - Forced win for {2}.",
+                                                                 round.ID, match.ID, match.Winner.Name));
+                                advance(Context, _tChannelMgr, _data._tourney); //Automatically advance tourney
+                                return;
                             }
                         }
                     }
@@ -480,6 +485,7 @@ namespace TourneyDiscordBot.Modules
                     _scoreChannel.SendMessageAsync(string.Format("No active match found for {0}", Context.User.Mention));
 
             }
+
 
 
             [Command("report")]
@@ -511,7 +517,7 @@ namespace TourneyDiscordBot.Modules
                     return;
                 }
 
-                reportResult(status, name, 0xFFFFFFFFFFFF);
+                reportResult(status, name, 0);
             }
 
             [Command("forcereport")]
@@ -520,12 +526,7 @@ namespace TourneyDiscordBot.Modules
             {
 
                 if (!checkIfContextUserAdmin(Context))
-                {
-                    var msg = await Context.Channel.SendMessageAsync("Admin Only Command");
-                    System.Threading.Thread.Sleep(2000);
-                    await msg.DeleteAsync();
                     return;
-                }
 
                 if (status != "W" && status != "L")
                 {
@@ -533,7 +534,7 @@ namespace TourneyDiscordBot.Modules
                     return;
                 }
 
-                forceResult(status, name, 0xFFFFFFFFFFFF);
+                forceResult(status, name, 0);
             }
 
             [Command("forcereport")]
@@ -542,12 +543,7 @@ namespace TourneyDiscordBot.Modules
             {
 
                 if (!checkIfContextUserAdmin(Context))
-                {
-                    var msg = await Context.Channel.SendMessageAsync("Admin Only Command");
-                    System.Threading.Thread.Sleep(2000);
-                    await msg.DeleteAsync();
                     return;
-                }
 
                 if (status != "W" && status != "L")
                 {
@@ -555,7 +551,7 @@ namespace TourneyDiscordBot.Modules
                     return;
                 }
 
-                forceResult(status, user.Username, 0xFFFFFFFFFFFF);
+                forceResult(status, user.Username, 0);
             }
 
             [Command("ready")]
@@ -563,7 +559,7 @@ namespace TourneyDiscordBot.Modules
             public async Task Ready()
             {
                 
-                foreach (Round round in _tourney.bracket.Rounds)
+                foreach (Round round in _data._tourney.bracket.Rounds)
                 {
                     foreach (Matchup match in round.Matchups)
                     {
@@ -593,10 +589,10 @@ namespace TourneyDiscordBot.Modules
                 EmbedBuilder builder = new EmbedBuilder();
                 builder.WithTitle("Registered Players");
 
-                foreach (Player p in _tourney.Players)
+                foreach (Player p in _data._tourney.Players)
                 {
                     string name = p.Name;
-                    if (p.DiscordID != 0xFFFFFFFFFFFF)
+                    if (PlayerHasDiscord(p))
                         name = Context.Guild.GetUser(p.DiscordID).Mention;
                         builder.AddField("Player " + p.ID.ToString(),
                             name);    // true - for inline
@@ -622,7 +618,7 @@ namespace TourneyDiscordBot.Modules
 
                 try
                 {
-                    Player p = _tourney.Players[id];
+                    Player p = _data._tourney.Players[id];
                     await ReplyAsync(getPlayerText(p));
                 }
                 catch (Exception e)
@@ -634,7 +630,7 @@ namespace TourneyDiscordBot.Modules
 
             private void createVCs()
             {
-                foreach (Team t in _tourney.Teams)
+                foreach (Team t in _data._tourney.Teams)
                 {
                     Context.Guild.CreateVoiceChannelAsync("TOURNAMENT TEAM " + t.ID);
                 }
@@ -642,7 +638,7 @@ namespace TourneyDiscordBot.Modules
 
             private void deleteVCs()
             {
-                foreach (Team t in _tourney.Teams)
+                foreach (Team t in _data._tourney.Teams)
                 {
                     foreach (var vc in Context.Guild.VoiceChannels)
                     {
@@ -657,7 +653,7 @@ namespace TourneyDiscordBot.Modules
             private void deletePlayerRoles()
             {
                 Context.Guild.GetRole(_tChannelMgr.RoleID).DeleteAsync();
-                _tChannelMgr.RoleID = 0xFFFFFFFFFFFFFFFF;
+                _tChannelMgr.RoleID = 0;
             }
 
             private void deleteTextChannels()
@@ -668,37 +664,67 @@ namespace TourneyDiscordBot.Modules
                     Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID).DeleteAsync();
                 if (_tChannelMgr.ScoreReportChannelID > 0)
                     Context.Guild.GetChannel(_tChannelMgr.ScoreReportChannelID).DeleteAsync();
-                
+                if (_tChannelMgr.RegistationChannelID > 0)
+                    Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID).DeleteAsync();
                 Context.Guild.GetCategoryChannel(_tChannelMgr.CategoryChannelID).DeleteAsync();
 
-                _tChannelMgr.ManagementChannelID = 0xFFFFFFFFFFFFFFFF;
-                _tChannelMgr.AnnouncementChannelID = 0xFFFFFFFFFFFFFFFF;
-                _tChannelMgr.ScoreReportChannelID = 0xFFFFFFFFFFFFFFFF;
-                _tChannelMgr.CategoryChannelID = 0xFFFFFFFFFFFFFFFF;
+                _tChannelMgr.ManagementChannelID = 0;
+                _tChannelMgr.AnnouncementChannelID = 0;
+                _tChannelMgr.ScoreReportChannelID = 0;
+                _tChannelMgr.CategoryChannelID = 0;
             }
 
             [Command("create")]
             [Summary("Initialize Tournament")]
-            public async Task CreateTourney()
+            public async Task CreateTourney(string type, string team_gen_method)
             {
                 var u = Context.User as SocketGuildUser;
 
                 if (!checkIfContextUserAdmin(Context))
-                {
-                    var msg1 = await ReplyAsync(string.Format("Isa mwrh saloufa thes na kaneis kai create"));
-                    System.Threading.Thread.Sleep(5000);
-                    await Context.Channel.DeleteMessageAsync(msg1.Id);
                     return;
-                }
                 
                 //Dirty check to see if a tourney has already been created
-                if (_tChannelMgr.AnnouncementChannelID != 0xFFFFFFFFFFFFFFFF && _tChannelMgr.AnnouncementChannelID != 0)
+                if (_tChannelMgr.AnnouncementChannelID != 0 && _tChannelMgr.AnnouncementChannelID != 0)
                 {
                     await ReplyAsync(string.Format("Unable to create tournament (another tournament has already been created.)"));
                     return;
                 }
 
-                _tourney.Clear();
+                TournamentType _type;
+                switch (type)
+                {
+                    case "1s":
+                        _type = TournamentType.SOLO;
+                        break;
+                    case "2s":
+                        _type = TournamentType.DOUBLES;
+                        break;
+                    case "3s":
+                        _type = TournamentType.TRIPLES;
+                        break;
+                    default:
+                        _type = TournamentType.DOUBLES; //Default choice
+                        break;
+                }
+
+                TournamentTeamGenMethod _method;
+                switch (team_gen_method)
+                {
+                    case "random":
+                        _method = TournamentTeamGenMethod.RANDOM;
+                        break;
+                    case "register":
+                        _method = TournamentTeamGenMethod.REGISTER;
+                        break;
+                    default:
+                        _method = TournamentTeamGenMethod.RANDOM; //Default choice
+                        break;
+                }
+
+                //Setup Tourney
+                _data._tourney.Clear();
+                _data._tourney.setTournamentType(_type);
+                _data._tourney.setTournamentTeamGenMethod(_method);
                 //await Context.Guild.CreateVoiceChannelAsync("TOURNAMENT PLAYER POOL");
 
                 //Create Channel Category
@@ -737,48 +763,21 @@ namespace TourneyDiscordBot.Modules
                     true, true, false, false, false, false, false, false, false, false, false, false);
 
                 //permissions.Add(Discord.GuildPermission.ReadMessages);
-                var role = await Context.Guild.CreateRoleAsync("RLFridays", permissions, Discord.Color.Blue, false, null);
+                var role = await Context.Guild.CreateRoleAsync(_data._settings.textSettings.tournRoleName, permissions, Color.Blue, false, null);
                 _tChannelMgr.RoleID = role.Id;
 
                 EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
-                footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
+                footerBuilder.Text = _data._settings.textSettings.embed_footer;
 
                 EmbedBuilder builder = new EmbedBuilder();
                 builder.WithTitle("RLFriday " + DateTime.Now);
-                builder.Description = "Zimarulis RLFriday 2vs2 tournament. " +
-                    "Τουρνουά Rocket League 2v2 με format good and bad. Για να είναι οι ομάδες δίκαιες και να δίνεται η ίδια δυνατότητα σε όλους" +
-                    " να κερδίσουν, οι ομάδες φτιάχνονται με βάση το rank των παικτών βάζοντας στην ίδια ομάδα έναν παίκτη υψηλού rank και έναν χαμηλού rank.\n";
-                builder.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
+                builder.Description = _data._settings.textSettings.desc_TOURNAMENT_START;
+                builder.WithThumbnailUrl(_data._settings.textSettings.thumbnail_URL);
                 builder.WithColor(Color.Blue);
                 builder.Footer = footerBuilder;
                 var msg = await ann_channel.SendMessageAsync("", false, builder.Build());
 
-                //Add Rank Reactions
-
-                /*
-                await msg.AddReactionAsync(Emote.Parse("<:b1:804811079922090004>"));
-                await msg.AddReactionAsync(Emote.Parse("<:b2:804811082748788756>"));
-                await msg.AddReactionAsync(Emote.Parse("<:b3:804811087182299146>"));
-                await msg.AddReactionAsync(Emote.Parse("<:s1:804811086108688414>"));
-                await msg.AddReactionAsync(Emote.Parse("<:s2:804811087181512754>"));
-                await msg.AddReactionAsync(Emote.Parse("<:s3:804811087601074229>"));
-                await msg.AddReactionAsync(Emote.Parse("<:g1:804811088864477206>"));
-                await msg.AddReactionAsync(Emote.Parse("<:g2:804811092206288936>"));
-                await msg.AddReactionAsync(Emote.Parse("<:g3:804811090550587414>"));
-                await msg.AddReactionAsync(Emote.Parse("<:p1:804811088792780840>"));
-                await msg.AddReactionAsync(Emote.Parse("<:p2:804811089748688917>"));
-                await msg.AddReactionAsync(Emote.Parse("<:p3:804811089564401746>"));
-                await msg.AddReactionAsync(Emote.Parse("<:d1:804811087856795679>"));
-                await msg.AddReactionAsync(Emote.Parse("<:d2:804811089434902588>"));
-                await msg.AddReactionAsync(Emote.Parse("<:d3:804811090185814026>"));
-                await msg.AddReactionAsync(Emote.Parse("<:c1:804811087635415081>"));
-                await msg.AddReactionAsync(Emote.Parse("<:c2:804811087756525588>"));
-                await msg.AddReactionAsync(Emote.Parse("<:c3:804811089632165968>"));
-                await msg.AddReactionAsync(Emote.Parse("<:gc1:804811090495930388>"));
-                await msg.AddReactionAsync(Emote.Parse("<:gc2:804811090339954799>"));
-                await msg.AddReactionAsync(Emote.Parse("<:gc3:804811090474434571>"));
-                await msg.AddReactionAsync(Emote.Parse("<:ssl:804811088591978537>"));
-                */
+                
             }
 
             [Command("start")]
@@ -787,14 +786,9 @@ namespace TourneyDiscordBot.Modules
             {
                 var u = Context.User as SocketGuildUser;
                 if (!checkIfContextUserAdmin(Context))
-                {
-                    var msg1 = await ReplyAsync(string.Format("Isa mwrh saloufa thes na kaneis kai start"));
-                    System.Threading.Thread.Sleep(5000);
-                    await Context.Channel.DeleteMessageAsync(msg1.Id);
                     return;
-                }
 
-                if (_tourney.bracket == null)
+                if (_data._tourney.bracket == null)
                 {
                     await Context.Channel.SendMessageAsync(string.Format("Bracked not generated."));
                     return;
@@ -802,7 +796,7 @@ namespace TourneyDiscordBot.Modules
 
                 //Delete Registration Channel
                 await Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID).DeleteAsync();
-                _tChannelMgr.RegistationChannelID = 0xFFFFFFFFFFFFFFFF;
+                _tChannelMgr.RegistationChannelID = 0;
 
                 //Create Score Report Channel
                 var score_chl = await Context.Guild.CreateTextChannelAsync("TOURNAMENT_SCORE_REPORT");
@@ -815,11 +809,12 @@ namespace TourneyDiscordBot.Modules
                 await ann_chl.SendMessageAsync(string.Format("{0} Tournament Has Officially Started!. Use {1} to report your match results",
                                                role.Mention, score_chl.Mention));
 
-                lock (_tourney)
+                lock (_data._tourney)
                 {
-                    _tourney.IsStarted = true;
+                    _data._tourney.IsStarted = true;
                 }
-                
+
+                advance(Context, _tChannelMgr, _data._tourney); //Automatically advance tourney
             }
 
             [Command("end")]
@@ -844,28 +839,175 @@ namespace TourneyDiscordBot.Modules
             public class TeamsModule : ModuleBase<SocketCommandContext>
             {
 
-                public Tournament _tourney { get; set; }
+                public DiscordDataService _data { get; set; }
                 public TournamentChannelManager _tChannelMgr { get; set; }
 
                 [Command("generate")]
                 [Summary("Generate Teams")]
                 public async Task Generate()
                 {
-                    if (_tourney._players.Count == 0)
+                    if (_data._tourney._players.Count == 0)
                     {
                         await ReplyAsync("No Players Found.");
                         return;
                     }
 
-                    if (_tourney.RegistrationsEnabled)
+                    if (_data._tourney.RegistrationsEnabled)
                     {
                         await ReplyAsync("Cannot Generate Teams, registrations are still open!");
                         return;
                     }
 
-                    _tourney.CreateTeams();
+                    if (_data._tourney.TeamGenMethod != TournamentTeamGenMethod.RANDOM)
+                    {
+                        await ReplyAsync("Cannot Generate Teams, tournament is set to team registration mode");
+                        return;
+                    }
+
+                    _data._tourney.CreateTeams();
                     await ReplyAsync("Teams Successfully Generated");
                     await Post();
+                }
+                
+
+                public static bool registerTeam(SocketCommandContext _ctx, Tournament _tourney, Player p, string name)
+                {
+                    if (_tourney.Type == TournamentType.SOLO)
+                    {
+                        Team1s t = new Team1s();
+                        t.Name = name;
+                        t.addPlayer(p);
+                        _tourney._teams.Add(t);
+                        return true;
+                    }
+
+                    if (_tourney.Type == TournamentType.DOUBLES)
+                    {
+                        Team2s t = new Team2s();
+                        t.Name = name;
+                        t.addPlayer(p);
+                        _tourney._teams.Add(t);
+                        return true;
+                    }
+
+                    if (_tourney.Type == TournamentType.TRIPLES)
+                    {
+                        Team3s t = new Team3s();
+                        t.Name = name;
+                        t.addPlayer(p);
+                        _tourney._teams.Add(t);
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                [Command("register")]
+                [Summary("Register Team")]
+                public async Task Register(string name)
+                {
+                    if (!_data._tourney.RegistrationsEnabled)
+                    {
+                        await ReplyAsync("Registrations are closed. Wait for an announcement!");
+                        return;
+                    }
+
+                    //Make sure players exist
+                    Player p = _data._tourney.getPlayerbyDiscordID(Context.User.Id);
+                    
+                    if (p == null)
+                    {
+                        await ReplyAsync("Players do not exist, make sure to join the tourney first!");
+                        return;
+                    }
+
+                    if (p.team != null)
+                    {
+                        await ReplyAsync("You are already a member of a team. You cannot register a new team");
+                        return;
+                    }
+
+                    if (registerTeam(Context, _data._tourney, p, name))
+                    {
+                        await ReplyAsync("Team Successfully Generated");
+                    }
+                }
+
+                [Command("invite")]
+                [Summary("Invite Player to team")]
+                public async Task Invite(IUser u)
+                {
+                    if (!_data._tourney.RegistrationsEnabled)
+                    {
+                        await ReplyAsync("Registrations are closed. Wait for an announcement!");
+                        return;
+                    }
+
+                    //Make sure players exist
+                    Player p = _data._tourney.getPlayerbyDiscordID(Context.User.Id);
+
+
+                    //Make sure players exist
+                    Player p_inv = _data._tourney.getPlayerbyDiscordID(u.Id);
+
+                    if (p_inv == null)
+                    {
+                        await ReplyAsync("Player does not exist, make sure to invite players that have joined the tournament!");
+                        return;
+                    }
+
+                    TeamInvitation teamInvite = new TeamInvitation();
+                    teamInvite.team = p.team;
+
+
+                    int invitationId = p_inv.Invitations.Count;
+                    p_inv.Invitations.Add(teamInvite);
+
+                    //Send invitation
+                    await u.SendMessageAsync(string.Format("You have been invited by {0} to join team {1}. If you want to accept this invitation reply with ```!teams accept {2}```. If you want to reject this invitation reply with ```!teams reject {2}```",
+                        Context.User.Mention, p.team.Name, invitationId));
+                }
+
+                [Command("accept")]
+                [Summary("Accept Team Invitation")]
+                public async Task accept(int invitationID)
+                {
+                    //Make sure players exist
+
+                    Player p = _data._tourney.getPlayerbyDiscordID(Context.User.Id);
+
+                    if (p == null)
+                    {
+                        await ReplyAsync("You have not joined the tournament yet. Make sure to join first!");
+                        return;
+                    }
+
+                    TeamInvitation teamInvite = p.Invitations[invitationID];
+                    p.acceptInvitation(teamInvite);
+
+                    //Send invitation
+                    await Context.User.SendMessageAsync(string.Format("You have joined team \"{0}\".", teamInvite.team.Name));
+                }
+
+                [Command("reject")]
+                [Summary("Reject Team Invitation")]
+                public async Task reject(int invitationID)
+                {
+                    //Make sure players exist
+
+                    Player p = _data._tourney.getPlayerbyDiscordID(Context.User.Id);
+
+                    if (p == null)
+                    {
+                        await ReplyAsync("You have not joined the tournament yet. Make sure to join first!");
+                        return;
+                    }
+
+                    TeamInvitation teamInvite = p.Invitations[invitationID];
+                    p.rejectInvitation(teamInvite);
+
+                    //Send invitation
+                    await Context.User.SendMessageAsync(string.Format("You have rejected the invitation from team {0}.", teamInvite.team.Name));
                 }
 
                 [Command("post")]
@@ -877,20 +1019,21 @@ namespace TourneyDiscordBot.Modules
 
                     EmbedBuilder builder = new EmbedBuilder();
                     builder.WithTitle("Registered Teams");
-                    builder.WithDescription("Οι ομάδες δημιουργήθηκαν. Επικοινωνήστε με τους συμπαίκτες σας και βρείτε τους in game.");
-                    builder.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
+                    builder.WithDescription("Επικοινωνήστε με τους συμπαίκτες σας και βρείτε τους in game.");
+                    builder.WithThumbnailUrl(_data._settings.textSettings.thumbnail_URL);
 
-                    foreach (Team t in _tourney._teams)
+                    foreach (Team t in _data._tourney._teams)
                     {
-                        
-                        
                         List<string> mentions = new List<string>();
                         for (int i = 0; i < t.Players.Count; i++)
                         {
                             Player p = t.Players[i];
-                            mentions.Add(TournamentModule.getPlayerDiscName(p, Context) + "<:gc3:804811090474434571>");
+                            if (p == null)
+                                mentions.Add("EMPTY_SLOT");
+                            else
+                                mentions.Add(getPlayerDiscName(p, Context) + _data.emoteMap(p.Rank._rank));
                         }
-                        builder.AddField("Team " + t.ID, string.Join(" | ", mentions),false);
+                        builder.AddField(t.Name, string.Join(" | ", mentions),false);
                     }
 
                     builder.WithColor(Color.Red);
@@ -906,9 +1049,9 @@ namespace TourneyDiscordBot.Modules
                 {
                     try
                     {
-                        Team t = _tourney.Teams[id];
+                        Team t = _data._tourney.Teams[id];
                         EmbedBuilder builder = new EmbedBuilder();
-                        builder.WithTitle("Team " + t.ID);
+                        builder.WithTitle(t.Name);
                         
                         for (int i = 0; i < t.Players.Count; i++)
                         {
@@ -937,19 +1080,19 @@ namespace TourneyDiscordBot.Modules
             public class BracketModule : ModuleBase<SocketCommandContext>
             {
 
-                public Tournament _tourney { get; set; }
+                public DiscordDataService _data { get; set; }
                 public TournamentChannelManager _tChannelMgr { get; set; }
 
                 [Command("generate")]
                 [Summary("Generate Bracket")]
                 public async Task Generate()
                 {
-                    if (_tourney._teams.Count == 0)
+                    if (_data._tourney._teams.Count == 0)
                     {
                         await ReplyAsync("Please Generate Teams first");
                         return;
                     }
-                    _tourney.CreateBracket();
+                    _data._tourney.CreateBracket();
                     await ReplyAsync("Bracket Successfully Generated");
                     await Show();
                 }
@@ -958,10 +1101,10 @@ namespace TourneyDiscordBot.Modules
                 [Summary("Post Bracket to Discord")]
                 public async Task Show()
                 {
-                    _tourney.bracket.GenerateSVG();
+                    _data._tourney.bracket.GenerateSVG();
                     var _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as SocketTextChannel;
                     EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
-                    footerBuilder.Text = "EGG Gang - Zimarulis - RL Fridays";
+                    footerBuilder.Text = _data._settings.textSettings.embed_footer;
 
                     var picture = await Context.Channel.SendFileAsync(@"bracket.png");
 
@@ -982,14 +1125,17 @@ namespace TourneyDiscordBot.Modules
             [Group("registration")]
             public class RegistrationModule : ModuleBase<SocketCommandContext>
             {
-                public Tournament _tourney { get; set; }
+                public DiscordDataService _data { get; set; }
                 public TournamentChannelManager _tChannelMgr { get; set; }
 
                 [Command("open")]
                 [Summary("Enables Registrations")]
                 public async Task Open()
                 {
-                    _tourney.RegistrationsEnabled = true;
+                    if (!checkIfContextUserAdmin(Context))
+                        return;
+
+                    _data._tourney.RegistrationsEnabled = true;
                     //Make announcement
                     //This command should be sent to the registration channel
                     EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
@@ -1014,7 +1160,7 @@ namespace TourneyDiscordBot.Modules
                 [Summary("Close Registrations")]
                 public async Task Close()
                 {
-                    _tourney.RegistrationsEnabled = false;
+                    _data._tourney.RegistrationsEnabled = false;
                     //Make announcement
                     //This command should be sent to the registration channel
                     var _channel = Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID) as ISocketMessageChannel;

@@ -19,10 +19,46 @@ namespace TourneyDiscordBotWPF
     /// Interaction logic for MainWindow.xaml
     /// </summary>
 
+    public class EmoteSettings
+    {
+        public string RL_RANK_BRONZE_I;
+        public string RL_RANK_BRONZE_II;
+        public string RL_RANK_BRONZE_III;
+        public string RL_RANK_SILVER_I;
+        public string RL_RANK_SILVER_II;
+        public string RL_RANK_SILVER_III;
+        public string RL_RANK_GOLD_I;
+        public string RL_RANK_GOLD_II;
+        public string RL_RANK_GOLD_III;
+        public string RL_RANK_PLATINUM_I;
+        public string RL_RANK_PLATINUM_II;
+        public string RL_RANK_PLATINUM_III;
+        public string RL_RANK_DIAMOND_I;
+        public string RL_RANK_DIAMOND_II;
+        public string RL_RANK_DIAMOND_III;
+        public string RL_RANK_CHAMPION_I;
+        public string RL_RANK_CHAMPION_II;
+        public string RL_RANK_CHAMPION_III;
+        public string RL_RANK_GRAND_CHAMPION_I;
+        public string RL_RANK_GRAND_CHAMPION_II;
+        public string RL_RANK_GRAND_CHAMPION_III;
+        public string RL_RANK_SUPER_SONIC_LEGEND;
+    }
+
+    public class TextSettings
+    {
+        public string desc_TOURNAMENT_START;
+        public string thumbnail_URL;
+        public string embed_footer;
+        public string tournRoleName;
+    }
+
     public class Settings
     {
         public string AppToken;
         public ulong GuildID;
+        public EmoteSettings emoteSettings = new EmoteSettings();
+        public TextSettings textSettings = new TextSettings();
     }
     
     public partial class MainWindow : Window, INotifyPropertyChanged
@@ -33,7 +69,6 @@ namespace TourneyDiscordBotWPF
         private bool _botStatus;
         private System.Timers.Timer UI_updateTimer;
         private Settings settings = new Settings();
-
         public event PropertyChangedEventHandler PropertyChanged;
 
 
@@ -89,9 +124,13 @@ namespace TourneyDiscordBotWPF
             //Load Settings File
             string jsonstring = File.ReadAllText("settings.json");
             settings = JsonConvert.DeserializeObject<Settings>(jsonstring);
-            
+
+            DiscordDataService _data = new DiscordDataService();
+            _data.setSettings(settings);
+            _data.setTournament(_tourney);
+
             //Start Discord Bot
-            _bot = new Bot(settings.AppToken, _tourney, settings.GuildID);
+            _bot = new Bot(settings.AppToken, _data, settings.GuildID);
             startDiscBot();
             
             //Start UI update Timer
@@ -99,9 +138,7 @@ namespace TourneyDiscordBotWPF
             //UI_updateTimer.Interval = 500;
             UI_updateTimer.Elapsed += timerHandler;
             UI_updateTimer.Start();
-
-            
-        }
+    }
 
         //Timer Update Callback
         private void timerHandler(object sender, System.Timers.ElapsedEventArgs args)

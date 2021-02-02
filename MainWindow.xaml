@@ -44,12 +44,61 @@
                         <TextBlock Text="{Binding ID}"></TextBlock>
                     </StackPanel>
                     <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" VerticalAlignment="Stretch" Width="1" Margin="2" Stroke="Black" />
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Player 1: " VerticalAlignment="Center"></TextBlock>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Player 1: " VerticalAlignment="Center"/>
                     <ContentControl Grid.Row="0" Grid.Column="3" Content="{Binding Player1}" HorizontalAlignment="Left"/>
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Player 2: " VerticalAlignment="Center"></TextBlock>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Player 2: " VerticalAlignment="Center"/>
                     <ContentControl Grid.Row="1" Grid.Column="3" Content="{Binding Player2}" HorizontalAlignment="Left"/>
                 </Grid>
             </DataTemplate>
+
+            <DataTemplate DataType="{x:Type local:Team3s}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="26"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock Text="Team ID: "></TextBlock>
+                        <TextBlock Text="{Binding ID}"></TextBlock>
+                    </StackPanel>
+                    <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" VerticalAlignment="Stretch" Width="1" Margin="2" Stroke="Black" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Player 1: " VerticalAlignment="Center"/>
+                    <ContentControl Grid.Row="0" Grid.Column="3" Content="{Binding Player1}" HorizontalAlignment="Left"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Player 2: " VerticalAlignment="Center"/> 
+                    <ContentControl Grid.Row="1" Grid.Column="3" Content="{Binding Player2}" HorizontalAlignment="Left"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Player 3: " VerticalAlignment="Center"/>
+                    <ContentControl Grid.Row="2" Grid.Column="3" Content="{Binding Player3}" HorizontalAlignment="Left"/>
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type local:Team1s}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock Text="Team ID: "></TextBlock>
+                        <TextBlock Text="{Binding ID}"></TextBlock>
+                    </StackPanel>
+                    <Rectangle Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" VerticalAlignment="Stretch" Width="1" Margin="2" Stroke="Black" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Player: " VerticalAlignment="Center"/>
+                    <ContentControl Grid.Row="0" Grid.Column="3" Content="{Binding Player1}" HorizontalAlignment="Left"/>
+                </Grid>
+            </DataTemplate>
+
         </ResourceDictionary>
     </Window.Resources>
 

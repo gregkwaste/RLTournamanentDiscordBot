@@ -9,6 +9,7 @@ using Discord.Commands;
 using Discord;
 using System.Reflection;
 using TourneyDiscordBotWPF;
+using TourneyDiscordBotWPF.Common;
 
 namespace TourneyDiscordBot
 {
@@ -44,6 +45,95 @@ namespace TourneyDiscordBot
         public ulong RoleID { get; set; }
     }
 
+    public class DiscordEmoteMapper
+    {
+        private Dictionary<RL_RANK, string> emoteMap = new Dictionary<RL_RANK, string>();
+
+        public void setEmote(RL_RANK rank, string emote)
+        {
+            emoteMap[rank] = emote;
+        }
+
+        public string getEmote(RL_RANK rank)
+        {
+            return emoteMap[rank];
+        }
+
+    }
+
+
+    public class DiscordDataService
+    {
+        public Tournament _tourney;
+        public Settings _settings;
+
+        public void setSettings(Settings s)
+        {
+            _settings = s;
+        }
+
+        public void setTournament(Tournament t)
+        {
+            _tourney = t;
+        }
+
+        public string emoteMap(RL_RANK rank)
+        {
+            switch (rank)
+            {
+                case RL_RANK.BRONZE_I:
+                    return _settings.emoteSettings.RL_RANK_BRONZE_I;
+                case RL_RANK.BRONZE_II:
+                    return _settings.emoteSettings.RL_RANK_BRONZE_II;
+                case RL_RANK.BRONZE_III:
+                    return _settings.emoteSettings.RL_RANK_BRONZE_III;
+                case RL_RANK.SILVER_I:
+                    return _settings.emoteSettings.RL_RANK_SILVER_I;
+                case RL_RANK.SILVER_II:
+                    return _settings.emoteSettings.RL_RANK_SILVER_II;
+                case RL_RANK.SILVER_III:
+                    return _settings.emoteSettings.RL_RANK_SILVER_III;
+                case RL_RANK.GOLD_I:
+                    return _settings.emoteSettings.RL_RANK_GOLD_I;
+                case RL_RANK.GOLD_II:
+                    return _settings.emoteSettings.RL_RANK_GOLD_II;
+                case RL_RANK.GOLD_III:
+                    return _settings.emoteSettings.RL_RANK_GOLD_III;
+                case RL_RANK.PLATINUM_I:
+                    return _settings.emoteSettings.RL_RANK_PLATINUM_I;
+                case RL_RANK.PLATINUM_II:
+                    return _settings.emoteSettings.RL_RANK_PLATINUM_II;
+                case RL_RANK.PLATINUM_III:
+                    return _settings.emoteSettings.RL_RANK_PLATINUM_III;
+                case RL_RANK.DIAMOND_I:
+                    return _settings.emoteSettings.RL_RANK_DIAMOND_I;
+                case RL_RANK.DIAMOND_II:
+                    return _settings.emoteSettings.RL_RANK_DIAMOND_II;
+                case RL_RANK.DIAMOND_III:
+                    return _settings.emoteSettings.RL_RANK_DIAMOND_III;
+                case RL_RANK.CHAMPION_I:
+                    return _settings.emoteSettings.RL_RANK_CHAMPION_I;
+                case RL_RANK.CHAMPION_II:
+                    return _settings.emoteSettings.RL_RANK_CHAMPION_II;
+                case RL_RANK.CHAMPION_III:
+                    return _settings.emoteSettings.RL_RANK_CHAMPION_III;
+                case RL_RANK.GRAND_CHAMPION_I:
+                    return _settings.emoteSettings.RL_RANK_GRAND_CHAMPION_I;
+                case RL_RANK.GRAND_CHAMPION_II:
+                    return _settings.emoteSettings.RL_RANK_GRAND_CHAMPION_II;
+                case RL_RANK.GRAND_CHAMPION_III:
+                    return _settings.emoteSettings.RL_RANK_GRAND_CHAMPION_III;
+                case RL_RANK.SUPERSONIC_LEGEND:
+                    return _settings.emoteSettings.RL_RANK_SUPER_SONIC_LEGEND;
+            }
+
+
+
+            return "";
+        }
+    }
+
+
     public class GuildData
     {
         public Tournament _tourney { get; set; }
@@ -65,7 +155,7 @@ namespace TourneyDiscordBot
         private readonly Queue<BotRequest> _requests;
         
         //Data
-        private Tournament _tourney;
+        private DiscordDataService _dataService;
 
         //Bot Config
         private BotConfig _conf;
@@ -73,11 +163,11 @@ namespace TourneyDiscordBot
         //Tournament Channel Config
         private TournamentChannelManager _tchannelMgr;
 
-        public Bot(string token, Tournament t, ulong guildID)
+        public Bot(string token, DiscordDataService t, ulong guildID)
         {
             //Bind Data
             _token = token;
-            _tourney = t;
+            _dataService = t;
             
             //Generate Config
             _conf = new BotConfig();
@@ -103,7 +193,7 @@ namespace TourneyDiscordBot
             });
 
             //Add Tournament as a service
-            _services = new ServiceCollection().AddSingleton(_tourney).
+            _services = new ServiceCollection().AddSingleton(_dataService).
                                                 AddSingleton(_commands).
                                                 AddSingleton(_conf).
                                                 AddSingleton(_tchannelMgr).
@@ -225,23 +315,23 @@ namespace TourneyDiscordBot
 
         private void deleteChannel(SocketGuild _g, ulong channelID)
         {
-            if (channelID != 0xFFFFFFFFFFFFFFFF && channelID != 0)
+            if (channelID != 0)
                 _g.GetChannel(channelID).DeleteAsync();
-            System.Threading.Thread.Sleep(200);
+            System.Threading.Thread.Sleep(300);
         }
 
         private void deleteRole(SocketGuild _g, ulong roleID)
         {
-            if (roleID != 0xFFFFFFFFFFFFFFFF && roleID != 0)
+            if (roleID != 0)
                 _g.GetRole(roleID).DeleteAsync();
-            System.Threading.Thread.Sleep(200);
+            System.Threading.Thread.Sleep(300);
         }
 
         private void deleteCategoryChannel(SocketGuild _g, ulong catID)
         {
-            if (catID != 0xFFFFFFFFFFFFFFFF &&  catID != 0)
+            if (catID != 0)
                 _g.GetCategoryChannel(catID).DeleteAsync();
-            System.Threading.Thread.Sleep(200);
+            System.Threading.Thread.Sleep(300);
         }
 
         public async Task Close()
@@ -302,7 +392,6 @@ namespace TourneyDiscordBot
             {
                 //Do nothing
             }
-
         }
         
         private async Task HandleCommandAsync(SocketMessage arg)
