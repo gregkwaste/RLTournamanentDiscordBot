@@ -47,10 +47,14 @@ namespace TourneyDiscordBotWPF
 
     public class TextSettings
     {
-        public string desc_TOURNAMENT_START;
+        public string desc_1s_start;
+        public string desc_2s_start;
+        public string desc_3s_start;
         public string thumbnail_URL;
         public string embed_footer;
         public string tournRoleName;
+        public string fixeddesc;
+        public string goodnbaddesc;
     }
 
     public class Settings
