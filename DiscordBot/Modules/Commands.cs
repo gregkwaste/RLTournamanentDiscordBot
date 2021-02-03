@@ -103,7 +103,7 @@ namespace TourneyDiscordBot.Modules
                 var user = Context.User;
                 if (!rank.StartsWith("<:"))
                 {
-                    await ReplyAsync(user.Mention + " Pws ta gamhses ola, ksanakane join karamalaka");
+                    await ReplyAsync(user.Mention + "Unknown Command. Please use an emote to input your rank.");
                     return;
                 }
                 string rank_emote = rank.Split(':')[1];
@@ -261,8 +261,8 @@ namespace TourneyDiscordBot.Modules
 
                                 //Send DM to t1 captain
                                 _ctx.Guild.GetUser(match.Team1.Captain.DiscordID).SendMessageAsync(string.Format("Create a Lobby with name: {0} and pass {1}. " +
-                                    "Reply with !ready when you have created the lobby and I will send the credentials to the opposing team. Good luck!",
-                                                                                    match.Lobby.Name, match.Lobby.Pass));
+                                    "Reply with !ready when you have created the lobby and I will send the credentials to the opposing team. Good luck!", 
+                                    match.Lobby.Name, match.Lobby.Pass));
                                 _ctx.Guild.GetUser(match.Team2.Captain.DiscordID).SendMessageAsync(string.Format("Your opponents are responsible for creating a lobby this match!" +
                                      " When the lobby is ready you will receive the lobby credentials." +
                                     " If anything goes wrong, you can contact the opposing team captain here {0}. Good luck!", t1_captain));
@@ -288,7 +288,7 @@ namespace TourneyDiscordBot.Modules
                 if (final.Winner != null)
                 {
                     var _role = _ctx.Guild.GetRole(channelMgr.RoleID);
-                    _channel.SendMessageAsync(string.Format("{1} DING DING DING WE HAVE A WINNER!!!!! Congrats to {0} for winning the tournament!",
+                    _channel.SendMessageAsync(string.Format("{1}{0} Is the tournament champion! Thank you for participating and using the RLTourneys bot!",
                                                                         final.Winner.Name, _role.Mention));
                 }
             }
@@ -691,30 +691,44 @@ namespace TourneyDiscordBot.Modules
                 }
 
                 TournamentType _type;
+                string generation;
+                string start_text = "";
+                string tour_format = "";
                 switch (type)
                 {
                     case "1s":
                         _type = TournamentType.SOLO;
+                        start_text = _data._settings.textSettings.desc_1s_start;
+                        tour_format = "1v1";
                         break;
                     case "2s":
                         _type = TournamentType.DOUBLES;
+                        start_text = _data._settings.textSettings.desc_2s_start;
+                        tour_format = "2v2";
                         break;
                     case "3s":
                         _type = TournamentType.TRIPLES;
+                        start_text = _data._settings.textSettings.desc_3s_start;
+                        tour_format = "3v3";
                         break;
                     default:
                         _type = TournamentType.DOUBLES; //Default choice
                         break;
                 }
-
+                string TeamGenDesc = "";
+                string TeamMethodText = "";
                 TournamentTeamGenMethod _method;
                 switch (team_gen_method)
                 {
                     case "random":
                         _method = TournamentTeamGenMethod.RANDOM;
+                        TeamGenDesc = _data._settings.textSettings.goodnbaddesc;
+                        TeamMethodText = "Good and Bad";
                         break;
                     case "register":
                         _method = TournamentTeamGenMethod.REGISTER;
+                        TeamGenDesc = _data._settings.textSettings.fixeddesc;
+                        TeamMethodText = "Fixed Teams";
                         break;
                     default:
                         _method = TournamentTeamGenMethod.RANDOM; //Default choice
@@ -768,10 +782,13 @@ namespace TourneyDiscordBot.Modules
 
                 EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
                 footerBuilder.Text = _data._settings.textSettings.embed_footer;
-
+                
                 EmbedBuilder builder = new EmbedBuilder();
                 builder.WithTitle("RLFriday " + DateTime.Now);
-                builder.Description = _data._settings.textSettings.desc_TOURNAMENT_START;
+                builder.Description = start_text;
+                builder.AddField("Tournament format", "***" + tour_format + "***");
+                builder.AddField("Team generation", "***" + TeamMethodText + "***");
+                builder.AddField("Πως φτίαχνονται οι ομάδες",  TeamGenDesc);
                 builder.WithThumbnailUrl(_data._settings.textSettings.thumbnail_URL);
                 builder.WithColor(Color.Blue);
                 builder.Footer = footerBuilder;
@@ -793,7 +810,6 @@ namespace TourneyDiscordBot.Modules
                     await Context.Channel.SendMessageAsync(string.Format("Bracked not generated."));
                     return;
                 }
-
                 //Delete Registration Channel
                 await Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID).DeleteAsync();
                 _tChannelMgr.RegistationChannelID = 0;
@@ -815,6 +831,17 @@ namespace TourneyDiscordBot.Modules
                 }
 
                 advance(Context, _tChannelMgr, _data._tourney); //Automatically advance tourney
+                if (_data._tourney.Type == TournamentType.SOLO)
+                {
+                    return;
+                }
+
+                foreach (Team t in _data._tourney.Teams)
+                {
+                    string name = t.Name;
+                    var vc = await Context.Guild.CreateVoiceChannelAsync(name);
+                }
+
             }
 
             [Command("end")]
@@ -823,7 +850,7 @@ namespace TourneyDiscordBot.Modules
             {
                 if (!checkIfContextUserAdmin(Context))
                 {
-                    var msg1 = await ReplyAsync(string.Format("Isa mwrh saloufa thes na kaneis kai end"));
+                    var msg1 = await ReplyAsync(string.Format("You have no permission to execute this command."));
                     System.Threading.Thread.Sleep(5000);
                     await Context.Channel.DeleteMessageAsync(msg1.Id);
                     return;
@@ -1110,10 +1137,12 @@ namespace TourneyDiscordBot.Modules
 
                     string imgurl = picture.Attachments.First().Url;
                     _channel = Context.Guild.GetChannel(_tChannelMgr.AnnouncementChannelID) as SocketTextChannel;
+
+
                     EmbedBuilder BracketMessage = new EmbedBuilder();
                     BracketMessage.WithAuthor("RL Fridays");
                     BracketMessage.WithTitle("Bracket");
-                    BracketMessage.Description = "Το bracket δημιουργήθηκε. Σύντομα θα ξεκινήσει ο πρώτος γύρος!";
+                    BracketMessage.Description = "Το bracket δημιουργήθηκε. Σύντομα θα ξεκινήσει ο επόμενος γύρος!";
                     BracketMessage.WithImageUrl(imgurl);
                     BracketMessage.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
                     BracketMessage.WithColor(Color.Blue);
@@ -1143,7 +1172,7 @@ namespace TourneyDiscordBot.Modules
                     EmbedBuilder RegMessage = new EmbedBuilder();
                     RegMessage.WithTitle("Οι εγγραφές άνοιξαν!");
                     RegMessage.Description = "Οι εγγραφές άνοιξαν και θα παραμείνουν ανοιχτές μέχρι την έναρξη του τουρνουά στις 14:30! Θα ενημερωθείς με αντίστοιχο μύνημα όταν οι ομάδες φτιαχτούν.";
-                    RegMessage.AddField("Πως δηλώνω συμμετοχή", "Δηλώσε συμμετοχή γράφοντας !join (emote του rank) όπως στην παρακάτω εικόνα", false);    // true - for inline
+                    RegMessage.AddField("Πως δηλώνω συμμετοχή", "Δήλωσε συμμετοχή γράφοντας !join (emote του rank) όπως στην παρακάτω εικόνα", false);    // true - for inline
                     RegMessage.WithImageUrl("https://cdn.discordapp.com/attachments/805516317837885460/805516628505919488/unknown.png");
                     RegMessage.WithThumbnailUrl("https://cdn.discordapp.com/avatars/454232504182898689/ed55a0711ba007be7cfb11b1fa3e2075.png?size=128");
                     //builder.AddField("AOE", "63", true);
@@ -1160,11 +1189,29 @@ namespace TourneyDiscordBot.Modules
                 [Summary("Close Registrations")]
                 public async Task Close()
                 {
+
                     _data._tourney.RegistrationsEnabled = false;
                     //Make announcement
                     //This command should be sent to the registration channel
                     var _channel = Context.Guild.GetChannel(_tChannelMgr.RegistationChannelID) as ISocketMessageChannel;
-                    await _channel.SendMessageAsync("Tournament Registrations are Closed!");
+                    EmbedFooterBuilder footerBuilder = new EmbedFooterBuilder();
+                    footerBuilder.Text = _data._settings.textSettings.embed_footer;
+                    EmbedBuilder RegClosed = new EmbedBuilder();
+                    RegClosed.WithTitle("RLFriday " + DateTime.Now);
+                    RegClosed.Description = "Registrations are closed! The bracket is going to be generated soon!";
+                    string names = "";
+                    foreach (Player p in _data._tourney.Players)
+                    {
+                        string name = p.Name;
+                        if (PlayerHasDiscord(p))
+                        name = Context.Guild.GetUser(p.DiscordID).Mention;
+                        names = names + " " + name;
+                    }
+                    RegClosed.AddField("Registered players", names );
+                    RegClosed.WithThumbnailUrl(_data._settings.textSettings.thumbnail_URL);
+                    RegClosed.WithColor(Color.Blue);
+                    RegClosed.Footer = footerBuilder;
+                    var msg = await _channel.SendMessageAsync("", false, RegClosed.Build());
                 }
 
             }
